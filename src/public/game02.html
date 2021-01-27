@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>フェアリーゲーム</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+  </head>
+
+  <style>
+    body {
+      /*background-color: rgb(185, 214, 231);*/
+      background-color: rgb(201, 222, 235);
+      text-align: center;
+    }
+    h1 {
+      color: #e736bb;
+    }
+
+    /*以下　ボタン参照　https://saruwakakun.com/html-css/reference/buttons */
+    /*ボタン*/
+    .btn-square-pop {
+      position: relative;
+      display: inline-block;
+      padding: 0.25em 0.5em;
+      text-decoration: none;
+      color: #fff;
+      background: #fd9535; /*背景色*/
+      border-bottom: solid 2px #d27d00; /*少し濃い目の色に*/
+      border-radius: 4px; /*角の丸み*/
+      box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.2),
+        0 2px 2px rgba(0, 0, 0, 0.19);
+      font-weight: bold;
+    }
+    .btn-square-pop1 {
+      position: relative;
+      display: inline-block;
+      padding: 0.25em 0.5em;
+      text-decoration: none;
+      color: #fff;
+      /*background: #2baf26;*/ /*背景色*/
+      background: #e469c9; /*背景色*/
+      border-bottom: solid 2px #d27d00; /*少し濃い目の色に*/
+      border-radius: 4px; /*角の丸み*/
+      box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.2),
+        0 2px 2px rgba(0, 0, 0, 0.19);
+      font-weight: bold;
+    }
+
+    .btn-square-pop:active {
+      border-bottom: solid 2px #fd9535;
+      box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+    }
+  </style>
+
+  <body>
+    <h1>Fairy Game</h1>
+    <div>
+      <div>フェアリーID: <span id="myid"></span></div>
+      <div>
+        フェアリールームID:
+        <input id="room" type="text" size="10" value="room001" />
+      </div>
+    </div>
+    <div>
+      妖精がゲームを説明してくれます😊
+    </div>
+
+    <a href="#" class="btn-square-pop" button id="speak">始める前に！</a>
+    <a href="#" class="btn-square-pop" button id="connect">ルームに入る</a>
+    <a href="#" class="btn-square-pop1" button id="start" 　onclick="setup()">
+      ☆START☆ </a
+    ><br />
+
+    <input type="text" name="counter" size="10" />
+    <h>秒</h>
+
+    <h>スター：</h>
+    <input id="star_count" type="text" value="0" size="1" />
+    <h>こ</h>
+
+    <div></div>
+    <br />
+    <script>
+      //音声
+      let msg = new SpeechSynthesisUtterance();
+      let voices = window.speechSynthesis.getVoices();
+
+      //スマホ
+      let socket = io.connect();
+      let myid;
+
+      let room = document.querySelector("#room").value;
+      let btn = document.querySelector("#connect");
+      let sbtn = document.querySelector("#start");
+
+      let b = 0;
+      let g = 0;
+
+      //音声
+      function speak(text) {
+        // 以下オプション設定
+        msg.voice = voices[7]; // 7:Google 日本人 ja-JP ※他は英語のみ
+        msg.volume = 0.7; // 音量 min 0 ~ max 1
+        msg.rate = 1.5; // 速度 min 0 ~ max 10
+        msg.pitch = 2.0; // 音程 min 0 ~ max 2
+
+        msg.text = text; // 喋る内容
+        msg.lang = "ja-JP"; // en-US or ja-JP
+        // msg.lang = 'en-US'; // en-US or ja-JP
+
+        // 発話実行
+        speechSynthesis.speak(msg);
+      }
+
+      // 終了時の処理
+      msg.onend = function (event) {
+        console.log("End: ", text);
+      };
+
+      let text =
+        "こんにちは、わたしは妖精です。わたしを動かして、ほしをつかまえましょう！ほしをつかまえると、よぞらに魔法をかけてさしあげます！それでは、ルームに入って、スタート！";
+
+      let button = document.querySelector("#speak");
+      button.onclick = function () {
+        speak(text);
+      };
+
+      //スマホセンサー
+      btn.addEventListener("click", function () {
+        socket.emit("join", room);
+        btn.remove();
+      });
+
+      sbtn.addEventListener("click", function () {
+        setInterval("setup()", 5000);
+      });
+
+      socket.on("mylogin", function (data) {
+        myid = data;
+        document.querySelector("#myid").innerHTML = myid;
+        console.log("あなたのID: ", myid);
+      });
+
+      socket.on("sensor", function (data) {
+        g = parseFloat(data.g);
+        b = parseFloat(data.b);
+        console.log(data);
+        console.log(g, b);
+      });
+
+      let x = 250;
+      let y = 250;
+      let speed = 0.04;
+      let star, star1, star2;
+      let yousei, yousei2;
+      let targetX;
+      let targetY;
+      let sample;
+
+      function preload() {
+        yousei = loadImage("stamps/yousei.png");
+        star = loadImage("stamps/hosi.png");
+        star1 = loadImage("stamps/hosi2.png");
+        star2 = loadImage("stamps/hosi4.png");
+        yousei2 = loadImage("stamps/yousei2.png");
+      }
+
+      function setup() {
+        createCanvas(500, 500);
+        background(0, 94, 147);
+        imageMode(CENTER);
+        targetX = random(width);
+        targetY = random(height);
+      }
+
+      function draw() {
+        background(0, 50, 101);
+        x = x + speed * g;
+        y = y + speed * b;
+
+        let max = 490;
+        let min = 25;
+        if (x > max) {
+          x = max;
+        } else if (x < min) {
+          x = min;
+        }
+        if (y > max) {
+          y = max;
+        } else if (y < min + 10) {
+          y = min + 10;
+        }
+
+        let distance = Math.sqrt(
+          (x - targetX) * (x - targetX) + (y - targetY) * (y - targetY)
+        );
+
+        image(star, targetX, targetY, 70, 50);
+        if (distance < 30) {
+          star_count.value++; //カウント
+          background(0, 50, 101);
+          image(star1, 195, 335, 320, 190);
+          image(star2, 146, 125, 210, 100);
+          image(yousei2, 345, 130, 220, 200);
+          image(star2, 366, 430, 170, 70);
+        }
+        image(yousei, x, y, 110, 110);
+      }
+    </script>
+  </body>
+</html>
